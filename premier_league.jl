@@ -87,10 +87,6 @@ function  get_transfer(clube)
     club_budget[club_budget.club_name .== clube, "transfer_budget"] 
 end
 
-function get_unique_positions(clube)
-    club_positions[club_positions.club_name .== clube, "first_position"]
-end 
-
 for position in unique_positions
     x = data[!, position] = data.first_position .== position
 end
@@ -131,9 +127,6 @@ teste.x = Array(x)
 optimize!(model)
 solution_summary(model)
 
-mean([10, 20])
-
-
 
 result = @chain teste begin
     TidierData.@filter(value((x)) == 1)
@@ -146,4 +139,3 @@ comparativo = @chain data begin
     TidierData.@summarise(mean_overall = mean(overall), mean_potential = mean(potential))
 end
 
-get_nplayers("Manchester City", "CF")
