@@ -15,7 +15,7 @@ premier_league = dropmissing(premier_league, [:value_eur, :wage_eur])
 
 data = @chain data begin
     TidierData.@filter(fifa_version == 24.0)
-    TidierData.@select(player_id, short_name, player_positions, overall, potential, value_eur, wage_eur, club_team_id, club_name, league_id,
+    TidierData.@select(player_id, short_name, player_positions, overall, potential, value_eur, wage_eur, age, club_team_id, club_name, league_id,
     league_name, club_position, nationality_name, release_clause_eur,pace, shooting, passing, dribbling, defending,
     physic)
     TidierData.@separate(player_positions, (a,b,c), ", ")
@@ -87,6 +87,8 @@ function  get_transfer(clube)
     club_budget[club_budget.club_name .== clube, "transfer_budget"] 
 end
 
+unique_positions = unique(data."first_position")
+
 for position in unique_positions
     x = data[!, position] = data.first_position .== position
 end
@@ -107,7 +109,64 @@ function skill(posicao)
     end
 end
 
+function forward_year(DataFrame,forward_year)
+    resultado = []
+        for player in 1:nrow(DataFrame)
+            if (DataFrame.age[player] + forward_year >= 36) & (DataFrame.first_position[player] == "GK")
 
+                append!(resultado, DataFrame.overall[player] - (DataFrame.age[player] + forward_year - 36 + 1))
+            
+            elseif (DataFrame.overall[player] < DataFrame.potential[player]) & (DataFrame.first_position[player] == "GK")
+            
+                append!(resultado, min(DataFrame.potential[player], DataFrame.overall[player] + (DataFrame.potential[player] - DataFrame.overall[player]) / (31-DataFrame.age[player])*forward_year)) 
+            
+            elseif (DataFrame.age[player] + forward_year >= 33) & (DataFrame.first_position[player] in ["ST","LB","CM","CF","CAM","RB","LWB","RWB"])
+            
+                append!(resultado, DataFrame.overall[player] - (DataFrame.age[player] + forward_year - 33 + 1))
+            
+            elseif  (DataFrame.overall[player] < DataFrame.potential[player]) & (DataFrame.first_position[player] in ["ST","LB","CM","CF","CAM","RB","LWB","RWB"])
+            
+                append!(append!(resultado, min(DataFrame.potential[player], DataFrame.overall[player] + (DataFrame.potential[player] - DataFrame.overall[player]) / (28-DataFrame.age[player])*forward_year)))
+            
+            elseif (DataFrame.age[player] + forward_year >= 32) &  (DataFrame.first_position[player] in ["LW","RW","RM","LM"])
+            
+                append!(resultado, DataFrame.overall[player] - (DataFrame.age[player] + forward_year - 32 + 1))
+            
+            elseif  (DataFrame.overall[player] < DataFrame.potential[player]) & (DataFrame.first_position[player] in ["LW","RW","RM","LM"])
+            
+                append!(append!(resultado, min(DataFrame.potential[player], DataFrame.overall[player] + (DataFrame.potential[player] - DataFrame.overall[player]) / (27-DataFrame.age[player])*forward_year)))   
+            
+            elseif (DataFrame.age[player] + forward_year >= 35) &  (DataFrame.first_position[player] == "CB")
+            
+                append!(resultado, DataFrame.overall[player] - (DataFrame.age[player] + forward_year - 35 + 1))
+            
+            elseif  (DataFrame.overall[player] < DataFrame.potential[player]) & (DataFrame.first_position[player] == "CB")
+            
+                append!(append!(resultado, min(DataFrame.potential[player], DataFrame.overall[player] + (DataFrame.potential[player] - DataFrame.overall[player]) / (30-DataFrame.age[player])*forward_year)))    
+            
+            elseif (DataFrame.age[player] + forward_year >= 34) &  (DataFrame.first_position[player] == "CDM")
+            
+                append!(resultado, DataFrame.overall[player] - (DataFrame.age[player] + forward_year - 34 + 1))
+            
+            elseif  (DataFrame.overall[player] < DataFrame.potential[player]) & (DataFrame.first_position[player] == "CDM")
+            
+                append!(append!(resultado, min(DataFrame.potential[player], DataFrame.overall[player] + (DataFrame.potential[player] - DataFrame.overall[player]) / (29-DataFrame.age[player])*forward_year)))    
+            
+            else
+
+                append!(resultado, data.overall[player])
+
+            end 
+
+        end
+
+    return resultado
+
+end
+
+for i in 1:5
+        data[!, "forward_$i"] = forward_year(data, i)
+end
 
 
 teste = data[:,:] 
@@ -121,7 +180,7 @@ teste.x = Array(x)
 @constraint(model,[i = 1:length(unique_positions)],sum((skill(unique_positions[i]) .* teste.x)) >= get_skill("Liverpool", unique_positions[i]))
 @constraint(model, sum(teste.value_eur .* teste.x) <= budget_constraint)
 @constraint(model, sum(teste.wage_eur .* teste.x) <= wage_constraint)
-@objective(model, Max, sum(teste.overall .* teste.x))
+@objective(model, Max, sum((teste.overall .+ teste.forward_1 .+ teste.forward_2 .+ teste.forward_3 .+ teste.forward_4 .+ teste.forward_5) .* teste.x))
 
 
 optimize!(model)
@@ -129,7 +188,7 @@ solution_summary(model)
 
 
 result = @chain teste begin
-    TidierData.@filter(value((x)) == 1)
+    TidierData.@filter(value((x)) >= 0.9)
     TidierData.@group_by(first_position)
     @ungroup
 end
@@ -139,3 +198,8 @@ comparativo = @chain data begin
     TidierData.@summarise(mean_overall = mean(overall), mean_potential = mean(potential))
 end
 
+for i = 1:length(unique_positions)
+    print(unique_positions[i],get_nplayers("Liverpool", unique_positions[i]))
+end
+
+sum(result[!, "LB"])

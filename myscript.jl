@@ -1,7 +1,8 @@
 using CSV, DataFrames, JuMP, HiGHS, TidierData
 
 data = CSV.read("male_players.csv", DataFrame)
- 
+
+#selecionando colunas utilizaveis 
 data = @chain data begin
     TidierData.@filter(fifa_version == 24.0)
     TidierData.@select(short_name, player_positions, overall, potential, value_eur, wage_eur, club_team_id, club_name, league_id,
@@ -18,6 +19,8 @@ unique_positions = unique(data."best_position")
 for position in unique_positions
     data[!, position] = data.best_position .== position
 end
+
+
 
 
 teste = data[1:50,:]

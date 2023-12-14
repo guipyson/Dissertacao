@@ -1,0 +1,16 @@
+st = shooting
+
+midfielders = passing
+
+defenders = defending
+
+lw e rw = dribbling
+
+gk = overall
+
+"ST", "CF" = forwards
+"LW" "RW" = wingers
+"CM", "CDM", "CAM", "RM", "LM" = midfielders
+"RB", "LB", "LWB", "RWB" = full_backs
+"CB" = center_back
+"GK"
